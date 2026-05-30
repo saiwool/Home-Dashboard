@@ -4,6 +4,9 @@
 create table if not exists public.profiles (
   id uuid references auth.users(id) on delete cascade primary key,
   display_name text,
+  first_name text,
+  last_name text,
+  avatar_url text,
   created_at timestamptz default now()
 );
 
@@ -131,3 +134,35 @@ create policy "Authenticated users can update cleaning tasks" on public.cleaning
 
 create policy "Users can delete their own cleaning tasks" on public.cleaning_tasks
   for delete using (auth.uid() = created_by);
+
+-- Inbox Messages
+create table if not exists public.inbox_messages (
+  id uuid default gen_random_uuid() primary key,
+  from_user_id uuid references auth.users(id) on delete cascade not null,
+  to_user_id uuid references auth.users(id) on delete cascade not null,
+  subject text not null,
+  body text not null,
+  emoji text default '💌',
+  created_at timestamptz default now(),
+  expires_at timestamptz,
+  archived_at timestamptz
+);
+
+alter table public.inbox_messages enable row level security;
+
+create policy "Users can view their own messages" on public.inbox_messages
+  for select using (auth.uid() = from_user_id or auth.uid() = to_user_id);
+
+create policy "Users can send messages" on public.inbox_messages
+  for insert with check (auth.uid() = from_user_id);
+
+create policy "Recipients can archive messages" on public.inbox_messages
+  for update using (auth.uid() = to_user_id);
+
+create policy "Senders can delete their messages" on public.inbox_messages
+  for delete using (auth.uid() = from_user_id);
+
+-- Profile migration (run after table creation if upgrading)
+-- alter table public.profiles add column if not exists first_name text;
+-- alter table public.profiles add column if not exists last_name text;
+-- alter table public.profiles add column if not exists avatar_url text;

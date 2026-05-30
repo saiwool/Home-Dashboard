@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { getTodayStr, addDays, getGreetingWord, DEFAULT_TZ } from '@/lib/dateUtils'
 
 function StatCard({ label, value, sub, color }) {
   const colors = {
@@ -34,11 +35,9 @@ export default async function OverviewPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = getTodayStr(DEFAULT_TZ)
   const monthStart = today.slice(0, 7) + '-01'
-  const weekEnd = new Date()
-  weekEnd.setDate(weekEnd.getDate() + 7)
-  const weekEndStr = weekEnd.toISOString().split('T')[0]
+  const weekEndStr = addDays(today, 7)
 
   const [
     { data: upcomingEvents },
@@ -67,8 +66,13 @@ export default async function OverviewPage() {
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 
-  const greeting = getGreeting()
-  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const greeting = getGreetingWord(DEFAULT_TZ)
+  const dateStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEFAULT_TZ,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date())
 
   return (
     <div className="max-w-3xl">
@@ -135,6 +139,12 @@ export default async function OverviewPage() {
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
               <path d="M7.5 10 10 12.5l7.5-8.333" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M17.5 10v6.667a.833.833 0 0 1-.833.833H3.333A.833.833 0 0 1 2.5 16.667V3.333A.833.833 0 0 1 3.333 2.5H12.5" strokeLinecap="round" />
+            </svg>
+          </QuickAction>
+          <QuickAction href="/dashboard/inbox" label="Write Letter">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+              <path d="M2.5 5.833A1.667 1.667 0 0 1 4.167 4.167h11.666A1.667 1.667 0 0 1 17.5 5.833v9.167a1.667 1.667 0 0 1-1.667 1.667H4.167A1.667 1.667 0 0 1 2.5 15V5.833Z" />
+              <path d="M2.5 6.25l7.5 5 7.5-5" strokeLinecap="round" />
             </svg>
           </QuickAction>
         </div>
@@ -271,11 +281,4 @@ export default async function OverviewPage() {
       </div>
     </div>
   )
-}
-
-function getGreeting() {
-  const h = new Date().getHours()
-  if (h < 12) return 'morning'
-  if (h < 17) return 'afternoon'
-  return 'evening'
 }

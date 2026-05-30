@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTimezone } from '@/app/hooks/useTimezone'
+import { getTodayStr } from '@/lib/dateUtils'
 
 const supabase = createClient()
-const today = new Date().toISOString().split('T')[0]
 
 const fmtDate = (d) =>
   new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -72,11 +73,14 @@ function EventSection({ title, events, onDelete, dim }) {
 }
 
 export default function CalendarPage() {
+  const tz = useTimezone()
+  const today = useMemo(() => getTodayStr(tz), [tz])
+
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [user, setUser] = useState(null)
-  const [form, setForm] = useState({ title: '', description: '', start_date: today, end_date: '' })
+  const [form, setForm] = useState({ title: '', description: '', start_date: '', end_date: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -93,6 +97,11 @@ export default function CalendarPage() {
       .order('start_date', { ascending: true })
     setEvents(data || [])
     setLoading(false)
+  }
+
+  function openForm() {
+    setForm({ title: '', description: '', start_date: today, end_date: '' })
+    setShowForm(!showForm)
   }
 
   async function handleAdd(e) {
@@ -129,7 +138,7 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <PageHeader onAdd={() => setShowForm(!showForm)} />
+      <PageHeader onAdd={openForm} />
 
       {showForm && (
         <div className="bg-white rounded-2xl p-6 card mb-6">

@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTimezone } from '@/app/hooks/useTimezone'
+import { getTodayStr, getMonthRange } from '@/lib/dateUtils'
 
 const supabase = createClient()
 
@@ -9,39 +11,28 @@ const CATEGORIES = ['Housing', 'Groceries', 'Utilities', 'Transport', 'Dining', 
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
-function getMonthRange(offset = 0) {
-  const d = new Date()
-  d.setMonth(d.getMonth() + offset)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const lastDay = new Date(year, d.getMonth() + 1, 0).getDate()
-  return {
-    start: `${year}-${month}-01`,
-    end: `${year}-${month}-${lastDay}`,
-    label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-  }
-}
-
 const inputClass = 'w-full px-3.5 py-2.5 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-[14px] text-[#1C1C1E] placeholder-[#AEAEB2] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] transition-all'
 
 export default function BudgetPage() {
+  const tz = useTimezone()
+  const today = useMemo(() => getTodayStr(tz), [tz])
+
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [monthOffset, setMonthOffset] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [user, setUser] = useState(null)
   const [form, setForm] = useState({
-    name: '', amount: '', category: 'General', type: 'expense',
-    item_date: new Date().toISOString().split('T')[0],
+    name: '', amount: '', category: 'General', type: 'expense', item_date: '',
   })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setUser(data.user)) }, [])
-  useEffect(() => { fetchItems() }, [monthOffset])
+  useEffect(() => { fetchItems() }, [monthOffset, tz])
 
   async function fetchItems() {
     setLoading(true)
-    const { start, end } = getMonthRange(monthOffset)
+    const { start, end } = getMonthRange(monthOffset, tz)
     const { data } = await supabase
       .from('budget_items')
       .select('*')
@@ -50,6 +41,11 @@ export default function BudgetPage() {
       .order('item_date', { ascending: false })
     setItems(data || [])
     setLoading(false)
+  }
+
+  function openForm() {
+    setForm({ name: '', amount: '', category: 'General', type: 'expense', item_date: today })
+    setShowForm(!showForm)
   }
 
   async function handleAdd(e) {
@@ -65,7 +61,7 @@ export default function BudgetPage() {
       item_date: form.item_date,
     })
     if (!error) {
-      setForm({ name: '', amount: '', category: 'General', type: 'expense', item_date: new Date().toISOString().split('T')[0] })
+      setForm({ name: '', amount: '', category: 'General', type: 'expense', item_date: today })
       setShowForm(false)
       fetchItems()
     }
@@ -80,18 +76,17 @@ export default function BudgetPage() {
   const income = items.filter((i) => i.type === 'income').reduce((s, i) => s + Number(i.amount), 0)
   const expenses = items.filter((i) => i.type === 'expense').reduce((s, i) => s + Number(i.amount), 0)
   const net = income - expenses
-  const { label } = getMonthRange(monthOffset)
+  const { label } = useMemo(() => getMonthRange(monthOffset, tz), [monthOffset, tz])
 
   return (
     <div>
-      {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h2 className="text-[22px] font-bold text-[#1C1C1E] tracking-[-0.01em]">Budget</h2>
           <p className="text-[14px] text-[#AEAEB2] mt-0.5">Household finances</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={openForm}
           className="flex items-center gap-2 px-4 py-2.5 bg-[#007AFF] hover:bg-[#0066DD] text-white text-[13.5px] font-semibold rounded-xl transition-colors shrink-0"
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">

@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTimezone } from '@/app/hooks/useTimezone'
+import { getTodayStr, addDays, fmtRelative } from '@/lib/dateUtils'
 
 const supabase = createClient()
 
@@ -12,29 +14,13 @@ const FREQUENCIES = [
   { value: 'monthly', label: 'Monthly', days: 30 },
 ]
 
-const today = new Date().toISOString().split('T')[0]
-
-function nextDueDate(freq) {
-  const days = FREQUENCIES.find((f) => f.value === freq)?.days ?? 7
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
-}
-
-function fmtRelative(d) {
-  if (!d) return null
-  const diff = Math.ceil((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000)
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Tomorrow'
-  if (diff === -1) return 'Yesterday'
-  if (diff < 0) return `${Math.abs(diff)}d overdue`
-  if (diff < 7) return `In ${diff} days`
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 const inputClass = 'w-full px-3.5 py-2.5 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-[14px] text-[#1C1C1E] placeholder-[#AEAEB2] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] transition-all'
 
 export default function CleaningPage() {
+  const tz = useTimezone()
+  const today = useMemo(() => getTodayStr(tz), [tz])
+  const threeDays = useMemo(() => addDays(today, 3), [today])
+
   const [tasks, setTasks] = useState([])
   const [profiles, setProfiles] = useState({})
   const [loading, setLoading] = useState(true)
@@ -65,12 +51,13 @@ export default function CleaningPage() {
     e.preventDefault()
     if (!user) return
     setSaving(true)
+    const days = FREQUENCIES.find((f) => f.value === form.frequency)?.days ?? 7
     const { error } = await supabase.from('cleaning_tasks').insert({
       created_by: user.id,
       assigned_to: form.assigned_to || null,
       name: form.name,
       frequency: form.frequency,
-      next_due: nextDueDate(form.frequency),
+      next_due: addDays(today, days),
     })
     if (!error) {
       setForm({ name: '', frequency: 'weekly', assigned_to: '' })
@@ -81,10 +68,10 @@ export default function CleaningPage() {
   }
 
   async function handleMarkDone(task) {
-    const done = today
-    const due = nextDueDate(task.frequency)
-    await supabase.from('cleaning_tasks').update({ last_done: done, next_due: due }).eq('id', task.id)
-    setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, last_done: done, next_due: due } : t))
+    const days = FREQUENCIES.find((f) => f.value === task.frequency)?.days ?? 7
+    const due = addDays(today, days)
+    await supabase.from('cleaning_tasks').update({ last_done: today, next_due: due }).eq('id', task.id)
+    setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, last_done: today, next_due: due } : t))
   }
 
   async function handleDelete(id) {
@@ -92,7 +79,6 @@ export default function CleaningPage() {
     setTasks((prev) => prev.filter((t) => t.id !== id))
   }
 
-  const threeDays = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
   const overdue = tasks.filter((t) => t.next_due && t.next_due < today)
   const dueSoon = tasks.filter((t) => t.next_due && t.next_due >= today && t.next_due <= threeDays)
   const upcoming = tasks.filter((t) => !t.next_due || t.next_due > threeDays)
@@ -202,7 +188,6 @@ export default function CleaningPage() {
                   isOverdue ? 'border-l-4 border-l-[#FF3B30]' : isDueSoon ? 'border-l-4 border-l-[#FF9500]' : ''
                 }`}
               >
-                {/* Done button */}
                 <button
                   onClick={() => handleMarkDone(task)}
                   title="Mark as done"
@@ -213,7 +198,6 @@ export default function CleaningPage() {
                   </svg>
                 </button>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-[14px] font-medium text-[#1C1C1E]">{task.name}</p>
@@ -227,8 +211,8 @@ export default function CleaningPage() {
                     )}
                   </div>
                   <p className={`text-[12px] mt-1 ${isOverdue ? 'text-[#FF3B30] font-medium' : isDueSoon ? 'text-[#E6860A]' : 'text-[#AEAEB2]'}`}>
-                    {task.next_due ? fmtRelative(task.next_due) : 'No due date'}
-                    {task.last_done && <span className="text-[#AEAEB2] font-normal"> · Last done {fmtRelative(task.last_done)}</span>}
+                    {task.next_due ? fmtRelative(task.next_due, today) : 'No due date'}
+                    {task.last_done && <span className="text-[#AEAEB2] font-normal"> · Last done {fmtRelative(task.last_done, today)}</span>}
                   </p>
                 </div>
 

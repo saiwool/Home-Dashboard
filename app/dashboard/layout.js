@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import SidebarNav from '@/app/components/SidebarNav'
 import MobileTabNav from '@/app/components/MobileTabNav'
 import LogoutButton from '@/app/components/LogoutButton'
@@ -12,12 +13,13 @@ export default async function DashboardLayout({ children }) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name')
+    .select('display_name, first_name, avatar_url')
     .eq('id', user.id)
     .single()
 
-  const displayName = profile?.display_name || user.email?.split('@')[0] || 'You'
+  const displayName = profile?.display_name || profile?.first_name || user.email?.split('@')[0] || 'You'
   const initials = displayName.slice(0, 2).toUpperCase()
+  const avatarUrl = profile?.avatar_url
 
   return (
     <div className="flex min-h-screen bg-[#F2F2F7]">
@@ -40,10 +42,16 @@ export default async function DashboardLayout({ children }) {
         {/* User footer */}
         <div className="p-4 border-t border-[#E5E5EA] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#EBF5FF] flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-semibold text-[#007AFF]">{initials}</span>
-            </div>
-            <span className="text-[13px] font-medium text-[#1C1C1E] flex-1 truncate">{displayName}</span>
+            <Link href="/dashboard/profile" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#EBF5FF] flex items-center justify-center shrink-0">
+                  <span className="text-[11px] font-semibold text-[#007AFF]">{initials}</span>
+                </div>
+              )}
+              <span className="text-[13px] font-medium text-[#1C1C1E] truncate">{displayName}</span>
+            </Link>
             <LogoutButton />
           </div>
         </div>
@@ -63,9 +71,15 @@ export default async function DashboardLayout({ children }) {
             <span className="text-[14px] font-semibold text-[#1C1C1E]">Home</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-full bg-[#EBF5FF] flex items-center justify-center">
-              <span className="text-[10px] font-semibold text-[#007AFF]">{initials}</span>
-            </div>
+            <Link href="/dashboard/profile">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} className="w-7 h-7 rounded-full object-cover" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-[#EBF5FF] flex items-center justify-center">
+                  <span className="text-[10px] font-semibold text-[#007AFF]">{initials}</span>
+                </div>
+              )}
+            </Link>
             <LogoutButton />
           </div>
         </header>
