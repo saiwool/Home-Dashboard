@@ -15,7 +15,6 @@ const groups = [
       { name: 'Calendar', href: '/dashboard/calendar', icon: 'calendar' },
       { name: 'Meals', href: '/dashboard/meals', icon: 'meals' },
       { name: 'Date Nights', href: '/dashboard/date-nights', icon: 'hearts' },
-      { name: 'Inbox', href: '/dashboard/inbox', icon: 'inbox' },
     ],
   },
   {

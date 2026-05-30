@@ -15,8 +15,17 @@ alter table public.profiles enable row level security;
 create policy "Users can view all profiles" on public.profiles
   for select using (auth.uid() is not null);
 
+create policy "Users can insert their own profile" on public.profiles
+  for insert with check (auth.uid() = id);
+
 create policy "Users can update their own profile" on public.profiles
   for update using (auth.uid() = id);
+
+-- Backfill profiles for users created before trigger was set up (run once if needed):
+-- insert into public.profiles (id, display_name)
+-- select id, split_part(email, '@', 1) from auth.users
+-- where id not in (select id from public.profiles)
+-- on conflict (id) do nothing;
 
 -- Auto-create profile on sign up
 create or replace function public.handle_new_user()
