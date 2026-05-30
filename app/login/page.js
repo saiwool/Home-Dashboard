@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState('login') // 'login' | 'signup'
+  const [mode, setMode] = useState('login')
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -27,7 +27,6 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
       router.push('/dashboard')
@@ -38,33 +37,42 @@ export default function LoginPage() {
     }
   }
 
+  const inputClass = 'w-full px-4 py-3 rounded-xl border border-[#E5E5EA] text-[15px] text-[#1C1C1E] bg-white placeholder-[#AEAEB2] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] transition-all'
+
   return (
-    <div className="min-h-full flex items-center justify-center bg-gradient-to-br from-indigo-50 to-slate-100 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    <div className="min-h-screen bg-[#F2F2F7] flex flex-col items-center justify-center px-5 py-12">
+      <div className="w-full max-w-sm">
+
+        {/* Logo mark */}
+        <div className="text-center mb-10">
+          <div className="w-[68px] h-[68px] bg-[#007AFF] rounded-[20px] flex items-center justify-center mx-auto mb-5" style={{ boxShadow: '0 8px 24px rgba(0,122,255,0.35)' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.75" className="w-8 h-8">
+              <path d="M3 9.5L12 3l9 6.5V21H15.5V15H8.5v6H3V9.5Z" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Home Dashboard</h1>
-          <p className="text-slate-500 mt-1">Your household, organized.</p>
+          <h1 className="text-[28px] font-bold text-[#1C1C1E] tracking-[-0.02em]">Home</h1>
+          <p className="text-[15px] text-[#AEAEB2] mt-1.5">Your household, organized.</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="flex rounded-lg bg-slate-100 p-1 mb-6">
+        {/* Card */}
+        <div className="bg-white rounded-3xl p-8 card">
+
+          {/* Segmented control */}
+          <div className="flex bg-[#F2F2F7] rounded-xl p-1 gap-1 mb-6">
             <button
+              type="button"
               onClick={() => setMode('login')}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
-                mode === 'login' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
+              className={`flex-1 py-2 text-[14px] font-semibold rounded-lg transition-all duration-150 ${
+                mode === 'login' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-[#6C6C70]'
               }`}
             >
               Sign in
             </button>
             <button
+              type="button"
               onClick={() => setMode('signup')}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
-                mode === 'signup' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'
+              className={`flex-1 py-2 text-[14px] font-semibold rounded-lg transition-all duration-150 ${
+                mode === 'signup' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-[#6C6C70]'
               }`}
             >
               Create account
@@ -73,30 +81,36 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <label className="block text-[13px] font-semibold text-[#1C1C1E] mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="you@example.com"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                autoComplete="email"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+              <label className="block text-[13px] font-semibold text-[#1C1C1E] mb-1.5">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                className={inputClass}
               />
             </div>
 
             {error && (
-              <div className={`text-sm p-3 rounded-lg ${error.includes('Check your email') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+              <div className={`text-[13px] px-4 py-3 rounded-xl ${
+                error.includes('Check your email')
+                  ? 'bg-[#E8F8ED] text-[#1A7A36]'
+                  : 'bg-[#FFF0EF] text-[#FF3B30]'
+              }`}>
                 {error}
               </div>
             )}
@@ -104,9 +118,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium rounded-lg transition-colors"
+              className="w-full py-3.5 bg-[#007AFF] hover:bg-[#0066DD] disabled:opacity-50 text-white text-[15px] font-bold rounded-xl transition-colors mt-2"
+              style={{ marginTop: '20px' }}
             >
-              {loading ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
+              {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
             </button>
           </form>
         </div>
