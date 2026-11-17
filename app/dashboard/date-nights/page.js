@@ -59,16 +59,13 @@ export default function DateNightsPage() {
   const [formError, setFormError] = useState('')
   const [actionError, setActionError] = useState('')
   const [picked, setPicked] = useState(null)
-  const [doneDate, setDoneDate] = useState(today)
+  const [doneDate, setDoneDate] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
+  const pickedDoneDate = doneDate || today
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
   }, [])
-
-  useEffect(() => {
-    setDoneDate(today)
-  }, [today])
 
   useEffect(() => {
     let active = true
@@ -157,7 +154,7 @@ export default function DateNightsPage() {
     setActionError('')
     const choice = source[Math.floor(Math.random() * source.length)]
     setPicked(choice)
-    setDoneDate(today)
+    setDoneDate('')
   }
 
   async function markDone(idea, date) {
@@ -260,14 +257,14 @@ export default function DateNightsPage() {
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#6C6C70] mb-1.5">Done on</label>
               <input
                 type="date"
-                value={doneDate}
+                value={pickedDoneDate}
                 onChange={(e) => setDoneDate(e.target.value)}
                 className={inputClass}
               />
             </div>
             <button
               type="button"
-              onClick={() => markDone(picked, doneDate)}
+              onClick={() => markDone(picked, pickedDoneDate)}
               className="px-4 py-2.5 bg-[#007AFF] hover:bg-[#0066DD] text-white text-[14px] font-semibold rounded-xl"
             >
               Mark done
@@ -424,11 +421,8 @@ export default function DateNightsPage() {
 
 function IdeaCard({ idea, today, onEdit, onDelete, onDone }) {
   const [marking, setMarking] = useState(false)
-  const [date, setDate] = useState(today)
-
-  useEffect(() => {
-    setDate(today)
-  }, [today])
+  const [date, setDate] = useState('')
+  const doneOn = date || today
 
   return (
     <div className="bg-white rounded-2xl p-4 card">
@@ -466,10 +460,10 @@ function IdeaCard({ idea, today, onEdit, onDelete, onDone }) {
       <div className="mt-3 pt-3 border-t border-[#F2F2F7]">
         {marking ? (
           <div className="flex flex-wrap items-center gap-2">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} sm:max-w-[12rem]`} />
+            <input type="date" value={doneOn} onChange={(e) => setDate(e.target.value)} className={`${inputClass} sm:max-w-[12rem]`} />
             <button
               type="button"
-              onClick={() => { onDone(date); setMarking(false) }}
+              onClick={() => { onDone(doneOn); setMarking(false) }}
               className="px-3 py-2 bg-[#007AFF] text-white text-[13px] font-semibold rounded-xl"
             >
               Save date
