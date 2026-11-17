@@ -157,3 +157,36 @@ create policy "Authenticated users can delete house projects" on public.house_pr
   for delete using (auth.uid() is not null);
 
 create index if not exists house_projects_status_idx on public.house_projects (status, priority);
+
+-- Date nights
+-- Ideas stay pickable until someone marks one done on a date.
+create table if not exists public.date_nights (
+  id uuid default gen_random_uuid() primary key,
+  created_by uuid references auth.users(id) on delete cascade not null,
+  title text not null,
+  category text,
+  cost_level text check (cost_level is null or cost_level in ('free', '$', '$$', '$$$')),
+  notes text,
+  done_on date,
+  created_at timestamptz default now()
+);
+
+alter table public.date_nights enable row level security;
+
+drop policy if exists "Authenticated users can view date nights" on public.date_nights;
+create policy "Authenticated users can view date nights" on public.date_nights
+  for select using (auth.uid() is not null);
+
+drop policy if exists "Users can insert date nights" on public.date_nights;
+create policy "Users can insert date nights" on public.date_nights
+  for insert with check (auth.uid() = created_by);
+
+drop policy if exists "Authenticated users can update date nights" on public.date_nights;
+create policy "Authenticated users can update date nights" on public.date_nights
+  for update using (auth.uid() is not null);
+
+drop policy if exists "Authenticated users can delete date nights" on public.date_nights;
+create policy "Authenticated users can delete date nights" on public.date_nights
+  for delete using (auth.uid() is not null);
+
+create index if not exists date_nights_done_on_idx on public.date_nights (done_on);
