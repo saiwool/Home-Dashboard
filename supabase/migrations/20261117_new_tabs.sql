@@ -123,3 +123,37 @@ create policy "Authenticated users can delete maintenance tasks" on public.maint
   for delete using (auth.uid() is not null);
 
 create index if not exists maintenance_tasks_next_due_idx on public.maintenance_tasks (next_due);
+
+-- House projects
+-- A backlog, not a today list. Status moves from idea to done over time.
+create table if not exists public.house_projects (
+  id uuid default gen_random_uuid() primary key,
+  created_by uuid references auth.users(id) on delete cascade not null,
+  title text not null,
+  status text not null default 'idea' check (status in ('idea', 'planned', 'in_progress', 'done')),
+  priority text not null default 'medium' check (priority in ('low', 'medium', 'high')),
+  target_date date,
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.house_projects enable row level security;
+
+drop policy if exists "Authenticated users can view house projects" on public.house_projects;
+create policy "Authenticated users can view house projects" on public.house_projects
+  for select using (auth.uid() is not null);
+
+drop policy if exists "Users can insert house projects" on public.house_projects;
+create policy "Users can insert house projects" on public.house_projects
+  for insert with check (auth.uid() = created_by);
+
+drop policy if exists "Authenticated users can update house projects" on public.house_projects;
+create policy "Authenticated users can update house projects" on public.house_projects
+  for update using (auth.uid() is not null);
+
+drop policy if exists "Authenticated users can delete house projects" on public.house_projects;
+create policy "Authenticated users can delete house projects" on public.house_projects
+  for delete using (auth.uid() is not null);
+
+create index if not exists house_projects_status_idx on public.house_projects (status, priority);

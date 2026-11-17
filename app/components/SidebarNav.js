@@ -29,6 +29,7 @@ const groups = [
     items: [
       { name: 'Cleaning', href: '/dashboard/cleaning', icon: 'cleaning' },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: 'maintenance' },
+      { name: 'Projects', href: '/dashboard/projects', icon: 'projects' },
       { name: 'Agreements', href: '/dashboard/agreements', icon: 'agreements' },
     ],
   },
@@ -64,6 +65,8 @@ const Icon = ({ name, active }) => {
       return <svg {...s}><path d="M10 2.5l.833 2.5H13.333l-2.083 1.458.833 2.709L10 7.708l-2.083 1.459.833-2.709L6.667 5H9.167L10 2.5Z" strokeLinejoin="round" /><path d="M5 13.75l2.5-2.5M4.167 15.833C3.333 15.833 2.5 15 2.5 14.167S3.333 12.5 4.167 12.5L7.5 15.833s-1.667 1.667-3.333 0Z" strokeLinejoin="round" /></svg>
     case 'maintenance':
       return <svg {...s}><path d="M12.5 4.167c1.25-1.25 3.333-1.25 4.583 0s1.25 3.333 0 4.583L15 6.667 13.333 8.333l2.5 2.5c-1.25 1.25-3.333 1.25-4.583 0L7.5 14.583c-.834.834-2.083.834-2.917 0-.833-.833-.833-2.083 0-2.916L8.333 7.917C7.083 6.667 7.083 4.583 8.333 3.333" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    case 'projects':
+      return <svg {...s}><rect x="2.5" y="3.333" width="4.167" height="13.334" rx="1" /><rect x="7.917" y="3.333" width="4.167" height="8.334" rx="1" /><rect x="13.333" y="3.333" width="4.167" height="10.834" rx="1" /></svg>
     case 'agreements':
       return <svg {...s}><path d="M6.667 16.25 2.5 12.5 5 10l2.5 2.5M13.333 16.25 17.5 12.5 15 10l-2.5 2.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M2.5 10.833S4.167 12.5 5 12.5c.833 0 2.917-4.167 4.167-4.167S10 10 11.25 10s2.5-1.667 3.75-1.667" strokeLinecap="round" /></svg>
     case 'documents':

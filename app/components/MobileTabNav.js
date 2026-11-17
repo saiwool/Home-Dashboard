@@ -12,6 +12,7 @@ const tabs = [
   { name: 'Shopping', href: '/dashboard/shopping' },
   { name: 'Date Nights', href: '/dashboard/date-nights' },
   { name: 'Maintenance', href: '/dashboard/maintenance' },
+  { name: 'Projects', href: '/dashboard/projects' },
   { name: 'Agreements', href: '/dashboard/agreements' },
   { name: 'Documents', href: '/dashboard/documents' },
   { name: 'Contacts', href: '/dashboard/home-contacts' },
