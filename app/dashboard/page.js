@@ -1,7 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { getTodayStr, addDays, getGreetingWord, DEFAULT_TZ } from '@/lib/dateUtils'
+import { getTodayStr, addDays, getGreetingWord, fmtRelative, DEFAULT_TZ } from '@/lib/dateUtils'
+import { isMissingRelation } from '@/lib/dbErrors'
+import { MissingTableNotice } from '@/app/components/QueryState'
 import InboxWidget from '@/app/components/InboxWidget'
+
+function safeQuery(promise) {
+  return promise.then(
+    (result) => result,
+    (error) => ({ data: null, error, count: null })
+  )
+}
 
 function StatCard({ label, value, sub, color }) {
   const colors = {
@@ -39,6 +48,7 @@ export default async function OverviewPage() {
   const today = getTodayStr(DEFAULT_TZ)
   const monthStart = today.slice(0, 7) + '-01'
   const weekEndStr = addDays(today, 7)
+  const horizon = addDays(today, 14)
 
   const [
     { data: upcomingEvents },
@@ -47,6 +57,9 @@ export default async function OverviewPage() {
     { data: cleaningTasks },
     { data: profiles },
     { data: currentProfile },
+    maintenanceRes,
+    shoppingRes,
+    dinnerRes,
   ] = await Promise.all([
     supabase.from('calendar_events').select('*').gte('start_date', today).order('start_date', { ascending: true }).limit(5),
     supabase.from('budget_items').select('amount, type').gte('item_date', monthStart),
@@ -54,7 +67,37 @@ export default async function OverviewPage() {
     supabase.from('cleaning_tasks').select('*').order('next_due', { ascending: true }).limit(5),
     supabase.from('profiles').select('id, display_name'),
     supabase.from('profiles').select('display_name').eq('id', user.id).single(),
+    safeQuery(
+      supabase
+        .from('maintenance_tasks')
+        .select('id, name, next_due, assigned_to')
+        .not('next_due', 'is', null)
+        .lte('next_due', horizon)
+        .order('next_due', { ascending: true })
+        .limit(8)
+    ),
+    safeQuery(
+      supabase
+        .from('shopping_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('checked', false)
+    ),
+    safeQuery(
+      supabase
+        .from('meals')
+        .select('id, title, notes')
+        .eq('meal_date', today)
+        .eq('slot', 'dinner')
+        .maybeSingle()
+    ),
   ])
+
+  const maintenanceMissing = isMissingRelation(maintenanceRes.error)
+  const dueMaintenance = maintenanceRes.data || []
+  const shoppingMissing = isMissingRelation(shoppingRes.error)
+  const shoppingCount = shoppingRes.count ?? 0
+  const dinnerMissing = isMissingRelation(dinnerRes.error)
+  const dinner = dinnerRes.data
 
   const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p.display_name]))
   const displayName = currentProfile?.display_name || user.email?.split('@')[0] || 'there'
@@ -158,6 +201,76 @@ export default async function OverviewPage() {
 
       {/* Content cards */}
       <div className="grid sm:grid-cols-2 gap-4">
+
+        {/* Tonight and shopping */}
+        <div className="bg-white rounded-2xl p-6 card">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Tonight</h3>
+            <Link href="/dashboard/meals" className="text-[13px] font-medium text-[#007AFF]">Plan</Link>
+          </div>
+          {dinnerMissing ? (
+            <MissingTableNotice feature="Meal planning" compact />
+          ) : dinnerRes.error ? (
+            <p className="text-[14px] text-[#AEAEB2]">Couldn&apos;t load tonight&apos;s meal.</p>
+          ) : dinner ? (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#AEAEB2]">Dinner</p>
+              <p className="text-[20px] font-bold text-[#1C1C1E] tracking-tight mt-1 break-words">{dinner.title}</p>
+              {dinner.notes && <p className="text-[13px] text-[#6C6C70] mt-1 break-words">{dinner.notes}</p>}
+            </div>
+          ) : (
+            <p className="text-[14px] text-[#AEAEB2]">No dinner planned.</p>
+          )}
+          <div className="mt-5 pt-4 border-t border-[#F2F2F7] flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#AEAEB2]">Shopping list</p>
+              {shoppingMissing ? (
+                <p className="text-[14px] text-[#AEAEB2] mt-1">Not set up yet.</p>
+              ) : shoppingRes.error ? (
+                <p className="text-[14px] text-[#AEAEB2] mt-1">Couldn&apos;t load the list.</p>
+              ) : (
+                <>
+                  <p className="text-[28px] font-bold text-[#1C1C1E] leading-none tracking-tight mt-1">{shoppingCount}</p>
+                  <p className="text-[12px] text-[#AEAEB2] mt-1">{shoppingCount === 1 ? 'item to buy' : 'items to buy'}</p>
+                </>
+              )}
+            </div>
+            <Link href="/dashboard/shopping" className="text-[13px] font-medium text-[#007AFF] pb-1">Open list</Link>
+          </div>
+        </div>
+
+        {/* Maintenance */}
+        <div className="bg-white rounded-2xl p-6 card">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Maintenance</h3>
+            <Link href="/dashboard/maintenance" className="text-[13px] font-medium text-[#007AFF]">Manage</Link>
+          </div>
+          {maintenanceMissing ? (
+            <MissingTableNotice feature="Maintenance" compact />
+          ) : maintenanceRes.error ? (
+            <p className="text-[14px] text-[#AEAEB2]">Couldn&apos;t load maintenance.</p>
+          ) : dueMaintenance.length ? (
+            <div className="space-y-3.5">
+              {dueMaintenance.map((task) => {
+                const isOverdue = task.next_due < today
+                return (
+                  <div key={task.id} className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${isOverdue ? 'bg-[#FF3B30]' : 'bg-[#FF9500]'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-medium text-[#1C1C1E] truncate">{task.name}</p>
+                      <p className={`text-[12px] mt-0.5 ${isOverdue ? 'text-[#FF3B30] font-medium' : 'text-[#AEAEB2]'}`}>
+                        {fmtRelative(task.next_due, today)}
+                        {task.assigned_to ? ` · ${profileMap[task.assigned_to] || 'assigned'}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-[14px] text-[#AEAEB2]">Nothing overdue or due in the next 14 days.</p>
+          )}
+        </div>
 
         {/* Upcoming Events */}
         <div className="bg-white rounded-2xl p-6 card">
