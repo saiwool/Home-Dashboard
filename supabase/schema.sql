@@ -220,3 +220,33 @@ begin
     alter publication supabase_realtime add table public.shopping_items;
   end if;
 end $$;
+
+-- Meals
+-- One row per day and slot. Ingredients are sent to the shopping list from the app.
+create table if not exists public.meals (
+  id uuid default gen_random_uuid() primary key,
+  created_by uuid references auth.users(id) on delete cascade not null,
+  meal_date date not null,
+  slot text not null default 'dinner' check (slot in ('breakfast', 'lunch', 'dinner')),
+  title text not null,
+  notes text,
+  ingredients jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now(),
+  constraint meals_one_per_slot unique (meal_date, slot)
+);
+
+alter table public.meals enable row level security;
+
+create policy "Authenticated users can view meals" on public.meals
+  for select using (auth.uid() is not null);
+
+create policy "Users can insert meals" on public.meals
+  for insert with check (auth.uid() = created_by);
+
+create policy "Authenticated users can update meals" on public.meals
+  for update using (auth.uid() is not null);
+
+create policy "Authenticated users can delete meals" on public.meals
+  for delete using (auth.uid() is not null);
+
+create index if not exists meals_meal_date_idx on public.meals (meal_date);
