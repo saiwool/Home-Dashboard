@@ -9,6 +9,7 @@ const tabs = [
   { name: 'Budget', href: '/dashboard/budget' },
   { name: 'Cleaning', href: '/dashboard/cleaning' },
   { name: 'Meals', href: '/dashboard/meals' },
+  { name: 'Shopping', href: '/dashboard/shopping' },
   { name: 'Date Nights', href: '/dashboard/date-nights' },
   { name: 'Maintenance', href: '/dashboard/maintenance' },
   { name: 'Agreements', href: '/dashboard/agreements' },

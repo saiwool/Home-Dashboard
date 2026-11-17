@@ -135,6 +135,12 @@ export default async function OverviewPage() {
               <path d="M10 6.25v.833M10 12.917v.833M12.083 8.333S11.25 7.083 10 7.083c-1.667 0-2.5.834-2.5 1.667 0 2.083 5 1.25 5 3.333 0 .834-.833 1.667-2.5 1.667-1.25 0-2.083-.833-2.083-.833" strokeLinecap="round" />
             </svg>
           </QuickAction>
+          <QuickAction href="/dashboard/shopping" label="Shopping List">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
+              <path d="M5 7.5h10l-.833 8.333H5.833L5 7.5Z" strokeLinejoin="round" />
+              <path d="M7.5 7.5V5.833a2.5 2.5 0 0 1 5 0V7.5" strokeLinecap="round" />
+            </svg>
+          </QuickAction>
           <QuickAction href="/dashboard/cleaning" label="Add Task">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
               <circle cx="10" cy="10" r="7.5" />

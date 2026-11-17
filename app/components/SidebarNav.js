@@ -14,6 +14,7 @@ const groups = [
     items: [
       { name: 'Calendar', href: '/dashboard/calendar', icon: 'calendar' },
       { name: 'Meals', href: '/dashboard/meals', icon: 'meals' },
+      { name: 'Shopping', href: '/dashboard/shopping', icon: 'shopping' },
       { name: 'Date Nights', href: '/dashboard/date-nights', icon: 'hearts' },
     ],
   },
@@ -51,6 +52,8 @@ const Icon = ({ name, active }) => {
       return <svg {...s}><rect x="2.5" y="3.75" width="15" height="13.75" rx="1.5" /><path d="M2.5 7.917h15M6.667 2.5v2.5M13.333 2.5v2.5" strokeLinecap="round" /></svg>
     case 'meals':
       return <svg {...s}><path d="M6.667 2.5v6.25a2.5 2.5 0 0 0 2.5 2.5v6.25M5.833 2.5v3.333M7.5 2.5v3.333M13.333 2.5s1.25 1.667 1.25 3.333-1.25 2.5-1.25 4.167v7.5" strokeLinecap="round" /></svg>
+    case 'shopping':
+      return <svg {...s}><path d="M5 7.5h10l-.833 8.333H5.833L5 7.5Z" strokeLinejoin="round" /><path d="M7.5 7.5V5.833a2.5 2.5 0 0 1 5 0V7.5" strokeLinecap="round" /></svg>
     case 'hearts':
       return <svg {...s}><path d="M10 16.25S2.5 11.875 2.5 7.083c0-1.958 1.667-3.333 3.542-3.333C7.5 3.75 8.75 4.583 10 5.833c1.25-1.25 2.5-2.083 3.958-2.083 1.875 0 3.542 1.375 3.542 3.333C17.5 11.875 10 16.25 10 16.25Z" strokeLinejoin="round" /></svg>
     case 'inbox':
