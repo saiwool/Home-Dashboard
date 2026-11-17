@@ -84,3 +84,42 @@ create policy "Authenticated users can delete meals" on public.meals
   for delete using (auth.uid() is not null);
 
 create index if not exists meals_meal_date_idx on public.meals (meal_date);
+
+-- Maintenance
+-- Home and life upkeep, separate from cleaning. Next due is stored so the
+-- list can be sorted without recomputing a frequency on every read.
+create table if not exists public.maintenance_tasks (
+  id uuid default gen_random_uuid() primary key,
+  created_by uuid references auth.users(id) on delete cascade not null,
+  assigned_to uuid references auth.users(id),
+  name text not null,
+  frequency text not null default 'monthly' check (frequency in ('weekly', 'monthly', 'quarterly', 'semiannual', 'yearly', 'custom')),
+  custom_days integer,
+  last_done date,
+  next_due date,
+  notes text,
+  created_at timestamptz default now(),
+  constraint maintenance_tasks_custom_days_check check (
+    frequency <> 'custom' or (custom_days is not null and custom_days > 0)
+  )
+);
+
+alter table public.maintenance_tasks enable row level security;
+
+drop policy if exists "Authenticated users can view maintenance tasks" on public.maintenance_tasks;
+create policy "Authenticated users can view maintenance tasks" on public.maintenance_tasks
+  for select using (auth.uid() is not null);
+
+drop policy if exists "Users can insert maintenance tasks" on public.maintenance_tasks;
+create policy "Users can insert maintenance tasks" on public.maintenance_tasks
+  for insert with check (auth.uid() = created_by);
+
+drop policy if exists "Authenticated users can update maintenance tasks" on public.maintenance_tasks;
+create policy "Authenticated users can update maintenance tasks" on public.maintenance_tasks
+  for update using (auth.uid() is not null);
+
+drop policy if exists "Authenticated users can delete maintenance tasks" on public.maintenance_tasks;
+create policy "Authenticated users can delete maintenance tasks" on public.maintenance_tasks
+  for delete using (auth.uid() is not null);
+
+create index if not exists maintenance_tasks_next_due_idx on public.maintenance_tasks (next_due);
