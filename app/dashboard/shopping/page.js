@@ -499,7 +499,7 @@ function ShoppingRow({
             className="text-[#C7C7CC] hover:text-[#007AFF] hover:bg-[#EBF5FF] p-1.5 rounded-lg transition-all"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-3.5 h-3.5">
-              <path d="M11.667 4.167 15.833 8.333M3.333 16.667l1.25-4.584L13.333 3.333a1.667 1.667 0 0 1 2.357 2.357L6.94 14.44 2.5 15.833l.833.834Z" strokeLinejoin="round" />
+              <path d="M11.25 4.167 15.833 8.75M3.333 16.667l.834-3.334L13.333 4.167a1.768 1.768 0 0 1 2.5 2.5L6.667 15.833l-3.334.834Z" strokeLinejoin="round" />
             </svg>
           </button>
           <button
