@@ -52,6 +52,9 @@ create table if not exists public.calendar_events (
   start_date date not null,
   end_date date,
   all_day boolean default true,
+  start_time timestamptz,
+  end_time timestamptz,
+  google_event_id text,
   created_at timestamptz default now()
 );
 
@@ -68,6 +71,40 @@ create policy "Users can delete their own events" on public.calendar_events
 
 create policy "Users can update their own events" on public.calendar_events
   for update using (auth.uid() = created_by);
+
+create unique index if not exists calendar_events_google_event_id_key
+  on public.calendar_events (google_event_id);
+
+comment on column public.calendar_events.google_event_id is
+  'Google Calendar event id when this row is linked. Null means the event exists only in the dashboard until it is imported.';
+
+-- One household Google Calendar connection.
+-- Tokens are encrypted by the app before they are stored.
+-- Row level security is on and there are no policies, so the browser cannot read or write this table.
+-- Server routes use the Supabase service role after checking the signed-in user.
+create table if not exists public.google_calendar_connection (
+  id smallint primary key default 1,
+  connected_by uuid references auth.users(id) on delete set null,
+  google_email text,
+  refresh_token text not null,
+  access_token text,
+  access_token_expires_at timestamptz,
+  calendar_id text,
+  scope text,
+  token_status text not null default 'active',
+  last_synced_at timestamptz,
+  connected_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint google_calendar_connection_id_check check (id = 1),
+  constraint google_calendar_connection_token_status_check check (token_status in ('active', 'needs_reconnect'))
+);
+
+alter table public.google_calendar_connection enable row level security;
+
+revoke all on table public.google_calendar_connection from PUBLIC, anon, authenticated;
+
+comment on table public.google_calendar_connection is
+  'Single household Google connection. Tokens are encrypted by the app. No policies, so anon and authenticated cannot read or write it. Server routes use the service role after checking the signed-in user.';
 
 -- Budget Items
 create table if not exists public.budget_items (
