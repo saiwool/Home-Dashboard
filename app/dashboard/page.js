@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { getTodayStr, addDays, getGreetingWord, fmtRelative, DEFAULT_TZ } from '@/lib/dateUtils'
+import { getTodayStr, addDays, getGreetingWord, fmtRelative, formatDisplayTime, DEFAULT_TZ } from '@/lib/dateUtils'
+import { syncFromGoogle } from '@/lib/google/sync'
 import { isMissingRelation } from '@/lib/dbErrors'
 import { MissingTableNotice } from '@/app/components/QueryState'
 import InboxWidget from '@/app/components/InboxWidget'
@@ -50,8 +51,10 @@ export default async function OverviewPage() {
   const weekEndStr = addDays(today, 7)
   const horizon = addDays(today, 14)
 
+  const syncPromise = syncFromGoogle(user.id).catch(() => null)
+
   const [
-    { data: upcomingEvents },
+    ,
     { data: budgetItems },
     { data: pendingAgreements },
     { data: cleaningTasks },
@@ -61,7 +64,7 @@ export default async function OverviewPage() {
     shoppingRes,
     dinnerRes,
   ] = await Promise.all([
-    supabase.from('calendar_events').select('*').gte('start_date', today).order('start_date', { ascending: true }).limit(5),
+    syncPromise,
     supabase.from('budget_items').select('amount, type').gte('item_date', monthStart),
     supabase.from('agreements').select('id, title, created_by').eq('status', 'pending').order('created_at', { ascending: false }),
     supabase.from('cleaning_tasks').select('*').order('next_due', { ascending: true }).limit(5),
@@ -91,6 +94,13 @@ export default async function OverviewPage() {
         .maybeSingle()
     ),
   ])
+
+  const { data: upcomingEvents } = await supabase
+    .from('calendar_events')
+    .select('*')
+    .gte('start_date', today)
+    .order('start_date', { ascending: true })
+    .limit(5)
 
   const maintenanceMissing = isMissingRelation(maintenanceRes.error)
   const dueMaintenance = maintenanceRes.data || []
@@ -292,6 +302,11 @@ export default async function OverviewPage() {
                     </div>
                     <div className="pt-0.5 min-w-0">
                       <p className="text-[14px] font-medium text-[#1C1C1E] truncate">{evt.title}</p>
+                      {evt.all_day === false && evt.start_time && (
+                        <p className="text-[12px] text-[#007AFF] mt-0.5">
+                          {formatDisplayTime(new Date(evt.start_time), DEFAULT_TZ)}
+                        </p>
+                      )}
                       {evt.description && (
                         <p className="text-[12px] text-[#AEAEB2] mt-0.5 truncate">{evt.description}</p>
                       )}
