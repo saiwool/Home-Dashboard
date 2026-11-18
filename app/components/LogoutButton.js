@@ -2,13 +2,16 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useTheme } from '@/app/components/ThemeProvider'
 
 export default function LogoutButton() {
   const router = useRouter()
   const supabase = createClient()
+  const { resetTheme } = useTheme()
 
   async function handleLogout() {
     await supabase.auth.signOut()
+    resetTheme()
     router.push('/login')
     router.refresh()
   }

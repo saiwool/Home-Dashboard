@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { isTheme, landingHref, persistTheme } from '@/lib/theme'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -27,9 +28,17 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-      router.push('/dashboard')
+      if (!data.user) throw new Error('Sign in did not return an account.')
+      const { data: prefs } = await supabase
+        .from('user_preferences')
+        .select('theme, default_tab')
+        .eq('id', data.user.id)
+        .maybeSingle()
+      const themeMode = isTheme(prefs?.theme) ? prefs.theme : 'system'
+      persistTheme(themeMode, data.user.id)
+      router.push(landingHref(prefs?.default_tab))
       router.refresh()
     } catch (err) {
       setError(err.message || 'Something went wrong')

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import SidebarNav from '@/app/components/SidebarNav'
 import MobileTabNav from '@/app/components/MobileTabNav'
 import LogoutButton from '@/app/components/LogoutButton'
+import ThemeToggle from '@/app/components/ThemeToggle'
 
 export default async function DashboardLayout({ children }) {
   const supabase = await createClient()
@@ -40,7 +41,8 @@ export default async function DashboardLayout({ children }) {
         <SidebarNav />
 
         {/* User footer */}
-        <div className="p-4 border-t border-[#E5E5EA] shrink-0">
+        <div className="p-4 border-t border-[#E5E5EA] shrink-0 space-y-3">
+          <ThemeToggle />
           <div className="flex items-center gap-3">
             <Link href="/dashboard/profile" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
               {avatarUrl ? (
@@ -71,6 +73,7 @@ export default async function DashboardLayout({ children }) {
             <span className="text-[14px] font-semibold text-[#1C1C1E]">Home</span>
           </div>
           <div className="flex items-center gap-1.5">
+            <ThemeToggle compact />
             <Link href="/dashboard/profile">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={displayName} className="w-7 h-7 rounded-full object-cover" />

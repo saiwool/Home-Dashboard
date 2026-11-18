@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #F2F2F7;
   --foreground: #1C1C1E;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,11 +15,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1C1C1E;
-    --foreground: #FFFFFF;
-  }
+html.dark {
+  --background: #000000;
+  --foreground: #F5F5F7;
+  color-scheme: dark;
 }
 
 body {
@@ -56,3 +58,49 @@ body {
     scrollbar-width: none;
   }
 }
+
+/* Existing screens use a fixed light palette (bg-white, text-[#1C1C1E], …).
+   The .dark class on <html> recolors those utilities so every tab, including
+   ones this change does not edit, stays readable. Accent blue and the pale
+   red/green/amber status chips keep their original colors. */
+html.dark .bg-white { background-color: #1c1c1e; }
+html.dark .bg-\[\#F2F2F7\] { background-color: #000000; }
+html.dark .bg-\[\#F9F9FB\] { background-color: #2c2c2e; }
+html.dark .bg-\[\#EBF5FF\] { background-color: #0c2d48; }
+html.dark .bg-\[\#1C1C1E\] { background-color: #f2f2f7; }
+html.dark .bg-\[\#1C1C1E\].text-white { color: #1c1c1e; }
+
+html.dark .hover\:bg-\[\#F2F2F7\]:hover { background-color: #2c2c2e; }
+html.dark .hover\:bg-\[\#F9F9FB\]:hover { background-color: #3a3a3c; }
+html.dark .hover\:bg-\[\#E5E5EA\]:hover { background-color: #3a3a3c; }
+html.dark .hover\:bg-\[\#EBF5FF\]:hover { background-color: #123a5c; }
+html.dark .hover\:bg-white\/70:hover { background-color: rgba(255, 255, 255, 0.08); }
+
+html.dark .text-\[\#1C1C1E\] { color: #f5f5f7; }
+html.dark .text-\[\#3A3A3C\] { color: #e5e5ea; }
+html.dark .text-\[\#6C6C70\] { color: #aeaeb2; }
+html.dark .text-\[\#8E8E93\] { color: #aeaeb2; }
+html.dark .hover\:text-\[\#1C1C1E\]:hover { color: #f5f5f7; }
+
+html.dark .border-\[\#E5E5EA\] { border-color: #38383a; }
+html.dark .border-\[\#F2F2F7\] { border-color: #2c2c2e; }
+html.dark .border-\[\#C7C7CC\] { border-color: #636366; }
+html.dark .hover\:border-\[\#1C1C1E\]:hover { border-color: #f5f5f7; }
+html.dark .divide-\[\#F2F2F7\] > :not([hidden]) ~ :not([hidden]) { border-color: #38383a; }
+
+html.dark .card {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+html.dark svg [stroke="#1C1C1E"] { stroke: #f5f5f7; }
+
+/* Paper notes and pale status banners stay light, so their ink stays dark. */
+html.dark .bg-\[\#FFFBF0\] .text-\[\#1C1C1E\],
+html.dark .bg-\[\#FFF4E5\].text-\[\#1C1C1E\],
+html.dark .bg-\[\#FFF4E5\] .text-\[\#1C1C1E\],
+html.dark .bg-\[\#E8F8ED\] .text-\[\#1C1C1E\],
+html.dark .bg-\[\#FFF0EF\] .text-\[\#1C1C1E\] {
+  color: #1c1c1e;
+}
+html.dark .bg-\[\#FFFBF0\] .text-\[\#3A3A3C\] { color: #3a3a3c; }
+html.dark .bg-\[\#FFFBF0\] .bg-white { background-color: #ffffff; }
