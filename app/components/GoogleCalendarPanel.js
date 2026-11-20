@@ -20,7 +20,8 @@ function syncedLabel(iso) {
   return `Synced ${new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
-function Shell({ children }) {
+function Shell({ children, plain }) {
+  if (plain) return <div className="px-1 pb-2">{children}</div>
   return (
     <div className="bg-white rounded-2xl p-5 card mb-6">
       <div className="flex items-start gap-3">
@@ -85,6 +86,7 @@ export default function GoogleCalendarPanel({
   localEventCount = 0,
   onStatus,
   onEventsChanged,
+  plain = false,
 }) {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -266,7 +268,7 @@ export default function GoogleCalendarPanel({
 
   if (loading && !status) {
     return (
-      <Shell>
+      <Shell plain={plain}>
         <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Google Calendar</h3>
         <p className="text-[14px] text-[#AEAEB2] mt-1">Checking your Google connection…</p>
       </Shell>
@@ -275,7 +277,7 @@ export default function GoogleCalendarPanel({
 
   if (loadError && !status) {
     return (
-      <Shell>
+      <Shell plain={plain}>
         <Banner banner={banner} />
         <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Google Calendar</h3>
         <p className="text-[14px] text-[#6C6C70] mt-1 leading-snug">{loadError}</p>
@@ -285,7 +287,7 @@ export default function GoogleCalendarPanel({
 
   if (status?.statusError) {
     return (
-      <Shell>
+      <Shell plain={plain}>
         <Banner banner={banner} />
         <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Google Calendar</h3>
         <p className="text-[14px] text-[#6C6C70] mt-1 leading-snug">{status.statusError}</p>
@@ -295,7 +297,7 @@ export default function GoogleCalendarPanel({
 
   if (!status?.configured) {
     return (
-      <Shell>
+      <Shell plain={plain}>
         <Banner banner={banner} />
         <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Google Calendar</h3>
         <p className="text-[14px] text-[#6C6C70] mt-1 leading-snug">
@@ -312,7 +314,7 @@ export default function GoogleCalendarPanel({
 
   if (status.needsMigration) {
     return (
-      <Shell>
+      <Shell plain={plain}>
         <Banner banner={banner} />
         <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Google Calendar</h3>
         <p className="text-[14px] text-[#6C6C70] mt-1 leading-snug">
@@ -328,7 +330,7 @@ export default function GoogleCalendarPanel({
 
   if (!status.connected) {
     return (
-      <Shell>
+      <Shell plain={plain}>
         <Banner banner={banner} />
         <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Connect your Google Calendar</h3>
         <p className="text-[14px] text-[#6C6C70] mt-1 leading-snug">
@@ -350,7 +352,7 @@ export default function GoogleCalendarPanel({
   }
 
   return (
-    <Shell>
+    <Shell plain={plain}>
       <Banner banner={banner} />
       <h3 className="text-[15px] font-semibold text-[#1C1C1E]">Your Google Calendar</h3>
       <p className="text-[14px] text-[#6C6C70] mt-1 leading-snug">

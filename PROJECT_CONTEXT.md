@@ -105,7 +105,7 @@ New tables enable RLS. Any signed-in user can select, update, and delete. Insert
 | Tab | Route | State |
 | --- | --- | --- |
 | Overview | `/dashboard` | Greeting, week events, month net, cleaning overdue, proposals. Also tonight's dinner, unchecked shopping count, and maintenance that is overdue or due within 14 days. Opening Overview syncs Google unless that already happened in the last minute, then labels upcoming events with their calendar color |
-| Calendar | `/dashboard/calendar` | Shared events. Home-only events still work with no Google setup. After a person connects, they choose calendars and events sync both ways |
+| Calendar | `/dashboard/calendar` | Google Calendar-style month, week, day, and schedule views. Defaults to month and remembers the last view on this browser. Home-only events still work with no Google setup. After a person connects, they choose calendars and events sync both ways |
 | Meals | `/dashboard/meals` | Monday–Sunday. Dinner is always shown. Breakfast and lunch are optional. A meal can send its ingredients to the shopping list |
 | Shopping | `/dashboard/shopping` | Shared list with Realtime, check off, edit, clear checked |
 | Date nights | `/dashboard/date-nights` | Ideas with category and cost. Pick one at random. Mark done with a date |
@@ -136,6 +136,10 @@ If both people select the same Google calendar, sync keeps a single `calendar_ev
 Creating, editing, or deleting a Google-linked event goes through `app/api/calendar/events` and is written back to Google with `sendUpdates=none`. The write uses a connected account that can edit that calendar, preferring the person who clicked. Events with no Google id still save through the browser Supabase client, and only the creator can edit or delete those. Disconnecting removes that person's tokens and drops Google-copied events that nobody else still syncs. Events created in Home stay.
 
 Opening Calendar or Overview syncs selected calendars. A sync in the last minute is skipped unless someone presses Sync now. The window is the past year through about 18 months ahead. Google events that disappear inside that window are removed here. Older linked rows outside the window are left alone.
+
+The Calendar screen is a grid, not a list. The toolbar has Create, Today, previous and next, the current month or day, and Month / Week / Day / Schedule. Week and day use a Sunday–Saturday hourly grid with an all-day row, overlapping events side by side, and a red line on today. Month cells show color-coded pills and a `+ more` list. Schedule is a compact agenda. Clicking an empty day or hour opens the event form with that date and time. Clicking an event opens details with Edit and Delete. Google-backed edits and deletes still go through `app/api/calendar/events`.
+
+A collapsible sidebar (a drawer on a phone) has a mini month, color checkboxes that only hide calendars in this browser, and Sync now. Manage Google calendars opens the same connect, calendar-choice, import, and disconnect card used on Account. Hiding a calendar does not change `google_calendars.selected` and does not disconnect Google. There is no location column; details show the stored notes.
 
 If `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, or `SUPABASE_SERVICE_ROLE_KEY` is missing, or the migration has not been run, Calendar keeps working and the card explains that in plain language. It does not list the variable names.
 
