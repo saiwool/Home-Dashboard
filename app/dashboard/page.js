@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { getTodayStr, addDays, getGreetingWord, fmtRelative, DEFAULT_TZ } from '@/lib/dateUtils'
 import { isMissingRelation } from '@/lib/dbErrors'
+import { sanitizeColor } from '@/lib/google/calendarChoice'
+import { syncHouseholdQuietly } from '@/lib/google/sync'
 import { MissingTableNotice } from '@/app/components/QueryState'
 import InboxWidget from '@/app/components/InboxWidget'
 
@@ -44,6 +46,7 @@ function QuickAction({ href, label, children }) {
 export default async function OverviewPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (user?.id) await syncHouseholdQuietly()
 
   const today = getTodayStr(DEFAULT_TZ)
   const monthStart = today.slice(0, 7) + '-01'
@@ -282,6 +285,7 @@ export default async function OverviewPage() {
             <div className="space-y-4">
               {upcomingEvents.map((evt) => {
                 const d = new Date(evt.start_date + 'T00:00:00')
+                const color = sanitizeColor(evt.calendar_color)
                 return (
                   <div key={evt.id} className="flex items-start gap-4">
                     <div className="shrink-0 w-10 text-center">
@@ -291,7 +295,13 @@ export default async function OverviewPage() {
                       <p className="text-[22px] font-bold text-[#1C1C1E] leading-tight">{d.getDate()}</p>
                     </div>
                     <div className="pt-0.5 min-w-0">
-                      <p className="text-[14px] font-medium text-[#1C1C1E] truncate">{evt.title}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />}
+                        <p className="text-[14px] font-medium text-[#1C1C1E] truncate">{evt.title}</p>
+                      </div>
+                      {evt.calendar_name && (
+                        <p className="text-[12px] text-[#6C6C70] mt-0.5 truncate">{evt.calendar_name}</p>
+                      )}
                       {evt.description && (
                         <p className="text-[12px] text-[#AEAEB2] mt-0.5 truncate">{evt.description}</p>
                       )}

@@ -54,7 +54,7 @@ export default function InboxWidget() {
 
   useEffect(() => {
     if (!open || !currentUserId) return
-    setLoading(true)
+    let cancelled = false
     supabase
       .from('inbox_messages')
       .select('*')
@@ -62,10 +62,14 @@ export default function InboxWidget() {
       .is('archived_at', null)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
+        if (cancelled) return
         setMessages(data || [])
         setUnreadCount(data?.length || 0)
         setLoading(false)
       })
+    return () => {
+      cancelled = true
+    }
   }, [open, currentUserId])
 
   function handlePoof(msgId) {
@@ -115,7 +119,10 @@ export default function InboxWidget() {
     <>
       {/* Trigger */}
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setLoading(true)
+          setOpen(true)
+        }}
         className="relative p-2.5 bg-white rounded-2xl card hover:bg-[#F9F9FB] transition-colors shrink-0"
         title="Notes"
       >
@@ -243,7 +250,7 @@ export default function InboxWidget() {
                 <div className="flex flex-col items-center py-16 px-8 text-center">
                   <div className="text-[44px] mb-3">💌</div>
                   <p className="text-[15px] font-semibold text-[#1C1C1E] mb-1">No notes yet</p>
-                  <p className="text-[13px] text-[#AEAEB2]">Write a note to your partner and it'll appear here.</p>
+                  <p className="text-[13px] text-[#AEAEB2]">Write a note to your partner and it will appear here.</p>
                 </div>
               ) : (
                 <div className="p-4 space-y-3">

@@ -76,6 +76,9 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- Calendar Events
+-- google_calendar_id + google_event_id is unique so a shared calendar synced by
+-- both people is stored once. origin = dashboard stays in Home if Google is
+-- disconnected. origin = google is removed when nobody still syncs that calendar.
 create table if not exists public.calendar_events (
   id uuid default gen_random_uuid() primary key,
   created_by uuid references auth.users(id) on delete cascade not null,
@@ -84,6 +87,14 @@ create table if not exists public.calendar_events (
   start_date date not null,
   end_date date,
   all_day boolean default true,
+  start_time timestamptz,
+  end_time timestamptz,
+  google_calendar_id text,
+  google_event_id text,
+  calendar_name text,
+  calendar_color text,
+  google_owner_id uuid references auth.users(id) on delete set null,
+  origin text not null default 'dashboard' check (origin in ('dashboard', 'google')),
   created_at timestamptz default now()
 );
 
@@ -96,10 +107,126 @@ create policy "Users can insert their own events" on public.calendar_events
   for insert with check (auth.uid() = created_by);
 
 create policy "Users can delete their own events" on public.calendar_events
-  for delete using (auth.uid() = created_by);
+  for delete using (auth.uid() = created_by and google_event_id is null);
 
 create policy "Users can update their own events" on public.calendar_events
-  for update using (auth.uid() = created_by);
+  for update using (auth.uid() = created_by and google_event_id is null)
+  with check (auth.uid() = created_by and google_event_id is null);
+
+create unique index if not exists calendar_events_google_identity_key
+  on public.calendar_events (google_calendar_id, google_event_id);
+
+comment on column public.calendar_events.google_event_id is
+  'Google event id. Together with google_calendar_id this is unique, so a shared calendar selected by both people is stored once.';
+
+revoke all on table public.calendar_events from anon, authenticated;
+
+grant select on table public.calendar_events to authenticated;
+
+grant insert (
+  id,
+  created_by,
+  title,
+  description,
+  start_date,
+  end_date,
+  all_day,
+  start_time,
+  end_time,
+  created_at
+) on table public.calendar_events to authenticated;
+
+grant update (
+  title,
+  description,
+  start_date,
+  end_date,
+  all_day,
+  start_time,
+  end_time
+) on table public.calendar_events to authenticated;
+
+grant delete on table public.calendar_events to authenticated;
+
+-- One Google account per household user. Tokens are encrypted by the app.
+-- Authenticated users can read their own status columns and disconnect.
+-- They cannot read token columns. Server routes use the service role.
+create table if not exists public.google_connections (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  google_email text,
+  refresh_token text not null,
+  access_token text,
+  access_token_expires_at timestamptz,
+  scope text,
+  token_status text not null default 'active' check (token_status in ('active', 'needs_reconnect')),
+  last_synced_at timestamptz,
+  connected_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.google_connections enable row level security;
+
+revoke all on table public.google_connections from public, anon, authenticated;
+
+grant select (
+  user_id,
+  google_email,
+  scope,
+  token_status,
+  last_synced_at,
+  connected_at,
+  updated_at
+) on table public.google_connections to authenticated;
+
+grant delete on table public.google_connections to authenticated;
+
+create policy "Users can view their own Google connection" on public.google_connections
+  for select using (auth.uid() = user_id);
+
+create policy "Users can delete their own Google connection" on public.google_connections
+  for delete using (auth.uid() = user_id);
+
+comment on table public.google_connections is
+  'One Google account per household user. Refresh and access tokens are encrypted with GOOGLE_CLIENT_SECRET. Authenticated users can read their own status and disconnect. Server routes use the service role to store tokens.';
+
+-- Calendars discovered for one user. selected is the household sync toggle.
+create table if not exists public.google_calendars (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  google_calendar_id text not null,
+  summary text not null default '',
+  description text,
+  background_color text,
+  foreground_color text,
+  access_role text,
+  primary_calendar boolean not null default false,
+  selected boolean not null default false,
+  updated_at timestamptz not null default now(),
+  constraint google_calendars_user_fk foreign key (user_id) references auth.users(id) on delete cascade,
+  constraint google_calendars_connection_fk foreign key (user_id) references public.google_connections(user_id) on delete cascade,
+  constraint google_calendars_user_calendar_key unique (user_id, google_calendar_id)
+);
+
+create index if not exists google_calendars_user_selected_idx
+  on public.google_calendars (user_id, selected);
+
+alter table public.google_calendars enable row level security;
+
+revoke all on table public.google_calendars from public, anon, authenticated;
+
+grant select on table public.google_calendars to authenticated;
+
+grant update (selected, updated_at) on table public.google_calendars to authenticated;
+
+create policy "Users can view their own Google calendars" on public.google_calendars
+  for select using (auth.uid() = user_id);
+
+create policy "Users can update their own Google calendars" on public.google_calendars
+  for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+comment on table public.google_calendars is
+  'Calendars discovered for one user. selected is the household sync toggle. Server routes write the list; the signed-in user can change selected on their own rows.';
 
 -- Budget Items
 create table if not exists public.budget_items (

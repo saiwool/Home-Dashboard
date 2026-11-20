@@ -7,6 +7,7 @@ import { isMissingRelation } from '@/lib/dbErrors'
 import { LANDING_TABS, landingHref } from '@/lib/theme'
 import { useTheme } from '@/app/components/ThemeProvider'
 import ThemeToggle from '@/app/components/ThemeToggle'
+import GoogleCalendarPanel from '@/app/components/GoogleCalendarPanel'
 
 const supabase = createClient()
 
@@ -291,7 +292,7 @@ export default function ProfilePage() {
     <div className="max-w-xl">
       <div className="mb-6">
         <h2 className="text-[22px] font-bold text-[#1C1C1E] tracking-[-0.01em]">Account</h2>
-        <p className="text-[14px] text-[#AEAEB2] mt-0.5">Your name, login, and preferences. The other account stays theirs.</p>
+        <p className="text-[14px] text-[#AEAEB2] mt-0.5">Your name, login, preferences, and Google Calendar. The other account stays theirs.</p>
       </div>
 
       {loading ? (
@@ -434,6 +435,8 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
+
+          <GoogleCalendarPanel returnTo="profile" />
         </div>
       )}
     </div>
