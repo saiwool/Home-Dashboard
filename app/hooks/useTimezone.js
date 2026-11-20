@@ -1,11 +1,15 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore } from 'react'
 import { DEFAULT_TZ } from '@/lib/dateUtils'
 
+function subscribe() {
+  return () => {}
+}
+
+function snapshot() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TZ
+}
+
 export function useTimezone() {
-  const [tz, setTz] = useState(DEFAULT_TZ)
-  useEffect(() => {
-    setTz(Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TZ)
-  }, [])
-  return tz
+  return useSyncExternalStore(subscribe, snapshot, () => DEFAULT_TZ)
 }

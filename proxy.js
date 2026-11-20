@@ -32,7 +32,14 @@ export async function proxy(request) {
 
   const { pathname } = request.nextUrl
 
-  if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth')) {
+  // The Google redirect must reach the callback even if the session cookie was dropped,
+  // so the route can send the person back to Calendar with a clear message.
+  const isPublic =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth') ||
+    pathname === '/api/google/callback'
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

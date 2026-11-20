@@ -10,8 +10,9 @@ Grok (Home) and Claude both work in this repo. Before starting, fetch and branch
 - Supabase via `@supabase/supabase-js` and `@supabase/ssr`
 - Browser client: `lib/supabase/client.js`. Server client: `lib/supabase/server.js`
 - Session refresh lives in `proxy.js` (Next.js 16 proxy, not `middleware.js`). The dashboard layout sends anonymous visitors to `/login`
-- Auth is email and password. Do not change auth settings or add environment variables unless Zac asks
+- Auth is email and password. Do not replace that with Google sign-in. Google Calendar is a separate server-side connection for each person
 - Existing public env vars, already set on Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Google Calendar adds three server-only env vars, listed in the Google Calendar section. Do not prefix them with `NEXT_PUBLIC_` and do not add any others unless asked
 - Household "today" on the server overview uses `America/Chicago` (`DEFAULT_TZ` in `lib/dateUtils.js`). Client pages use the browser timezone through `app/hooks/useTimezone.js`
 - There is no `household_id`. Both logged-in users are the household. Authenticated reads are shared
 - Theme is per user: Light, Dark, or System, stored on `user_preferences`. `app/layout.js` puts `class="dark"` on `<html>` for that signed-in user only. A cookie (`hd-theme`, `hd-theme-user`, `hd-resolved`) is just a paint cache and is ignored when it belongs to the other account. Sign-out clears it. Do not bring back the old `prefers-color-scheme` block in `app/globals.css`; System mode adds the class from the device instead
@@ -32,6 +33,7 @@ Migrations Zac runs by hand, in order, if they are not already applied:
 
 1. `supabase/migrations/20261117_new_tabs.sql` — shopping, meals, maintenance, projects, date nights
 2. `supabase/migrations/20261118_account_preferences.sql` — profile name columns, profile insert/update policies, and per-user preferences
+3. `supabase/migrations/20261120_google_calendar.sql` — per-person Google connections, calendar choices, and event link columns. `20261118_google_calendar.sql` was never applied and is not in this repo. Do not run that old file
 
 Account migration:
 
@@ -47,6 +49,21 @@ Zac runs it by hand:
 6. Confirm `user_preferences` exists, RLS is on, and the policies are select/insert/update for `auth.uid() = id` only.
 7. Confirm both accounts have a `profiles` row and a `user_preferences` row. The migration backfills them from `auth.users`.
 8. Refresh the dashboard and open Account. Until this SQL has been run, profile and preference saves show the Supabase error plus the name of this file. Email and password changes do not need the new table.
+
+Google Calendar migration:
+
+`supabase/migrations/20261120_google_calendar.sql`
+
+Zac runs it by hand:
+
+1. Open the Supabase project that backs the Vercel app.
+2. Go to SQL Editor and start a new query.
+3. Paste the entire file `supabase/migrations/20261120_google_calendar.sql`.
+4. Run it once. It is safe to run again.
+5. Confirm `google_connections` and `google_calendars` exist, and that `calendar_events` has `google_calendar_id`, `google_event_id`, and `origin`.
+6. Confirm the unique index is `calendar_events_google_identity_key` on `(google_calendar_id, google_event_id)`.
+7. Do not add `google_connections` to realtime. It holds encrypted tokens.
+8. Refresh Calendar. Until this SQL has been run, Google shows a setup message and household events still load.
 
 Current migration for the household tabs:
 
@@ -68,7 +85,7 @@ Zac runs it by hand:
 | --- | --- | --- |
 | `profiles` | Account | Names and avatar. Any signed-in user can read them. Insert and update are own-row only (`auth.uid() = id`, update also has `with check`) |
 | `user_preferences` | Account | One row per user: `theme` (`light`, `dark`, `system`) and `default_tab`. Select, insert, and update are own-row only. The other person cannot read this row |
-| `calendar_events` | Calendar | Supabase only. No Google sync yet |
+| `calendar_events` | Calendar | Shared events. `origin = dashboard` was created in Home and stays if Google is disconnected. `origin = google` was copied from Google and is removed when nobody still syncs that calendar. A linked row is unique on `(google_calendar_id, google_event_id)`, so With Baby selected by both people is stored once. The browser can insert and update ordinary fields on events that person created, and only when `google_event_id` is null. Google link columns are written by server routes |
 | `budget_items` | Budget | Manual income and expenses |
 | `agreements` | Agreements | Proposals the other person responds to |
 | `cleaning_tasks` | Cleaning | Recurring. Delete is limited to the creator |
@@ -78,6 +95,8 @@ Zac runs it by hand:
 | `maintenance_tasks` | Maintenance | Separate from cleaning. `next_due` is stored |
 | `house_projects` | Projects | Backlog, not a today list |
 | `date_nights` | Date nights | Ideas until `done_on` is set |
+| `google_connections` | Calendar | One row per user (`user_id`). Encrypted refresh and access tokens. RLS: select and delete own row only. Token columns are not granted to `authenticated`. Server routes use the service role |
+| `google_calendars` | Calendar | Calendars listed from that person's Google account. `selected` is the sync toggle. RLS: select and update own rows. `authenticated` can update only `selected` and `updated_at`. Deleting the connection cascades these rows |
 
 New tables enable RLS. Any signed-in user can select, update, and delete. Inserts must set `created_by` to `auth.uid()`. Delete is shared on these new tables so either person can clear a shopping item or edit a row the other created. That is wider than `cleaning_tasks`, which only lets the creator delete.
 
@@ -85,8 +104,8 @@ New tables enable RLS. Any signed-in user can select, update, and delete. Insert
 
 | Tab | Route | State |
 | --- | --- | --- |
-| Overview | `/dashboard` | Greeting, week events, month net, cleaning overdue, proposals. Also tonight's dinner, unchecked shopping count, and maintenance that is overdue or due within 14 days |
-| Calendar | `/dashboard/calendar` | Shared Supabase events |
+| Overview | `/dashboard` | Greeting, week events, month net, cleaning overdue, proposals. Also tonight's dinner, unchecked shopping count, and maintenance that is overdue or due within 14 days. Opening Overview syncs Google unless that already happened in the last minute, then labels upcoming events with their calendar color |
+| Calendar | `/dashboard/calendar` | Shared events. Home-only events still work with no Google setup. After a person connects, they choose calendars and events sync both ways |
 | Meals | `/dashboard/meals` | Monday–Sunday. Dinner is always shown. Breakfast and lunch are optional. A meal can send its ingredients to the shopping list |
 | Shopping | `/dashboard/shopping` | Shared list with Realtime, check off, edit, clear checked |
 | Date nights | `/dashboard/date-nights` | Ideas with category and cost. Pick one at random. Mark done with a date |
@@ -98,14 +117,82 @@ New tables enable RLS. Any signed-in user can select, update, and delete. Insert
 | Documents | `/dashboard/documents` | Placeholder |
 | Contacts | `/dashboard/home-contacts` | Placeholder |
 | Inbox | Overview popup, `/dashboard/inbox` | Notes between the two accounts |
-| Profile | `/dashboard/profile` | Account. Own display name, first and last name, avatar, email (confirmation email via `supabase.auth.updateUser`), password with a confirm field, theme, and default landing tab. The other person's name is listed and is read only. Sidebar and the mobile header have the same theme control |
+| Profile | `/dashboard/profile` | Account. Own display name, first and last name, avatar, email (confirmation email via `supabase.auth.updateUser`), password with a confirm field, theme, and default landing tab. The other person's name is listed and is read only. The same Google Calendar card as Calendar is here, for this login only. Sidebar and the mobile header have the same theme control |
 
 Nav lives in `app/components/SidebarNav.js` and `app/components/MobileTabNav.js`.
 
+## Google Calendar
+
+Each signed-in person connects their own Google account. Zac and Sarah do this separately, from Calendar or Account. Login stays email and password.
+
+Zac's shared calendar to turn on, along with the personal calendars he wants, is With Baby:
+
+`l1662ekg9q175mvofks89hs12c@group.calendar.google.com`
+
+The first time a calendar is seen, Home turns on calendars that person owns, their primary calendar, and With Baby when Google shares it with that account. Holiday and birthday feeds stay off until someone checks them. Either person can change their own checkboxes later.
+
+If both people select the same Google calendar, sync keeps a single `calendar_events` row for each `(google_calendar_id, google_event_id)`. The household calendar shows that event once, with the calendar color and name. A second personal calendar with its own copy is a different calendar id, so it stays separate.
+
+Creating, editing, or deleting a Google-linked event goes through `app/api/calendar/events` and is written back to Google with `sendUpdates=none`. The write uses a connected account that can edit that calendar, preferring the person who clicked. Events with no Google id still save through the browser Supabase client, and only the creator can edit or delete those. Disconnecting removes that person's tokens and drops Google-copied events that nobody else still syncs. Events created in Home stay.
+
+Opening Calendar or Overview syncs selected calendars. A sync in the last minute is skipped unless someone presses Sync now. The window is the past year through about 18 months ahead. Google events that disappear inside that window are removed here. Older linked rows outside the window are left alone.
+
+If `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, or `SUPABASE_SERVICE_ROLE_KEY` is missing, or the migration has not been run, Calendar keeps working and the card explains that in plain language. It does not list the variable names.
+
+Code:
+
+- OAuth, Calendar API, and sync live in `lib/google/` and `app/api/google/*`.
+- Redirect URI is `${origin}/api/google/callback`. Google will accept only these two, with no trailing slash:
+  - `https://home-dashboard-ebon.vercel.app/api/google/callback`
+  - `http://localhost:3000/api/google/callback`
+- Other hosts, including Vercel preview URLs, can use a connection made on the home site but cannot start OAuth.
+- Scopes requested, space-separated: `openid`, `email`, `https://www.googleapis.com/auth/calendar.calendarlist.readonly`, `https://www.googleapis.com/auth/calendar.events`.
+
+### Env vars for Vercel Production and Preview
+
+Add all three. Then redeploy so the running app picks them up. Leave the existing Supabase URL and anon key as they are.
+
+| Name | Where the value comes from |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` | Google Cloud OAuth client |
+| `GOOGLE_CLIENT_SECRET` | That same OAuth client. Rotating it means each person connects again, because tokens are encrypted with it |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → `service_role` secret |
+
+There is no `GOOGLE_CALENDAR_ID`. Calendar choice is stored per user in `google_calendars`.
+
+`SUPABASE_SERVICE_ROLE_KEY` stays server-only. Never put it in client code, never prefix it with `NEXT_PUBLIC_`, and never paste it into the browser. The anon key cannot read token columns.
+
+### Database
+
+Run `supabase/migrations/20261120_google_calendar.sql` in the Supabase SQL Editor before connecting. If Calendar still says the database needs an update after a successful run, wait a few seconds and refresh.
+
+### Create the Google OAuth client
+
+Do this while signed in to Google as zachj8@gmail.com, unless Sarah is creating the Cloud project. Either Google account can be the Cloud owner. Each person still connects their own account inside Home.
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a project named `Home Dashboard`, or open the existing one.
+3. Open **APIs & Services → Library**, search for **Google Calendar API**, and enable it.
+4. Open **APIs & Services → OAuth consent screen** (Google’s newer label is **Google Auth Platform**).
+5. If asked for a user type, choose **External**. Set the app name to `Home Dashboard`, and set the user support email and developer contact to zachj8@gmail.com.
+6. Leave the publishing status on **Testing** until you are ready to publish.
+7. Add test users: `zachj8@gmail.com` and `beyondthepoolofstars@gmail.com`.
+8. Add the scopes `openid`, `email`, `https://www.googleapis.com/auth/calendar.calendarlist.readonly`, and `https://www.googleapis.com/auth/calendar.events`.
+9. Open **APIs & Services → Credentials → Create credentials → OAuth client ID**.
+10. Choose **Web application**. Name it `Home Dashboard`.
+11. Leave **Authorized JavaScript origins** empty. This app uses a server redirect, not a browser token.
+12. Under **Authorized redirect URIs**, add these two values exactly, with no trailing slash:
+    - `https://home-dashboard-ebon.vercel.app/api/google/callback`
+    - `http://localhost:3000/api/google/callback`
+13. Create the client and copy the client id and client secret into the Vercel env vars above.
+
+### Testing mode expires after 7 days
+
+While the consent screen stays in **Testing**, Google expires the refresh token 7 days after consent. Home then asks that person to reconnect. That is expected. Publish the app, then reconnect, to stop the 7-day expiry. Publishing does not by itself remove Google’s unverified-app warning. Calendar access is a sensitive scope. For this household, continue past the warning. The unverified-app user cap does not matter for two people.
+
 ## Planned next work
 
-1. **Next:** Google Calendar two-way sync with the calendar named `with Baby`. The Calendar tab is Supabase-only today. Do this before any finance work.
-2. **Deferred:** finance, Plaid, and a Rocket Money CSV history import. Do not start these until someone explicitly asks. Budget stays manual.
+1. **Deferred:** finance, Plaid, and a Rocket Money CSV history import. Do not start these until someone explicitly asks. Budget stays manual. Google Calendar sync is in place.
 
 ## While you are in the code
 
