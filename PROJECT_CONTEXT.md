@@ -14,6 +14,7 @@ Grok (Home) and Claude both work in this repo. Before starting, fetch and branch
 - Existing public env vars, already set on Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - Household "today" on the server overview uses `America/Chicago` (`DEFAULT_TZ` in `lib/dateUtils.js`). Client pages use the browser timezone through `app/hooks/useTimezone.js`
 - There is no `household_id`. Both logged-in users are the household. Authenticated reads are shared
+- Theme is per user: Light, Dark, or System, stored on `user_preferences`. `app/layout.js` puts `class="dark"` on `<html>` for that signed-in user only. A cookie (`hd-theme`, `hd-theme-user`, `hd-resolved`) is just a paint cache and is ignored when it belongs to the other account. Sign-out clears it. Do not bring back the old `prefers-color-scheme` block in `app/globals.css`; System mode adds the class from the device instead
 
 ## Deploy
 
@@ -26,6 +27,26 @@ The UI must keep working when a new table does not exist yet. `lib/dbErrors.js` 
 `supabase/schema.sql` is the full picture for a fresh database. Do not paste that whole file into a database that already has data. Policies there are not written to be re-run.
 
 Incremental changes go in `supabase/migrations/<date>_<name>.sql` and must also be copied into `supabase/schema.sql`. Migrations should be idempotent where practical (`create table if not exists`, `drop policy if exists`, `create index if not exists`).
+
+Migrations Zac runs by hand, in order, if they are not already applied:
+
+1. `supabase/migrations/20261117_new_tabs.sql` — shopping, meals, maintenance, projects, date nights
+2. `supabase/migrations/20261118_account_preferences.sql` — profile name columns, profile insert/update policies, and per-user preferences
+
+Account migration:
+
+`supabase/migrations/20261118_account_preferences.sql`
+
+Zac runs it by hand:
+
+1. Open the Supabase project that backs the Vercel app.
+2. Go to SQL Editor and start a new query.
+3. Paste the entire file `supabase/migrations/20261118_account_preferences.sql`.
+4. Run it once. It is safe to run again.
+5. Confirm `profiles` has `first_name`, `last_name`, and `avatar_url`.
+6. Confirm `user_preferences` exists, RLS is on, and the policies are select/insert/update for `auth.uid() = id` only.
+7. Confirm both accounts have a `profiles` row and a `user_preferences` row. The migration backfills them from `auth.users`.
+8. Refresh the dashboard and open Account. Until this SQL has been run, profile and preference saves show the Supabase error plus the name of this file. Email and password changes do not need the new table.
 
 Current migration for the household tabs:
 
@@ -45,7 +66,8 @@ Zac runs it by hand:
 
 | Table | Used by | Notes |
 | --- | --- | --- |
-| `profiles` | Account | Created on signup |
+| `profiles` | Account | Names and avatar. Any signed-in user can read them. Insert and update are own-row only (`auth.uid() = id`, update also has `with check`) |
+| `user_preferences` | Account | One row per user: `theme` (`light`, `dark`, `system`) and `default_tab`. Select, insert, and update are own-row only. The other person cannot read this row |
 | `calendar_events` | Calendar | Supabase only. No Google sync yet |
 | `budget_items` | Budget | Manual income and expenses |
 | `agreements` | Agreements | Proposals the other person responds to |
@@ -76,7 +98,7 @@ New tables enable RLS. Any signed-in user can select, update, and delete. Insert
 | Documents | `/dashboard/documents` | Placeholder |
 | Contacts | `/dashboard/home-contacts` | Placeholder |
 | Inbox | Overview popup, `/dashboard/inbox` | Notes between the two accounts |
-| Profile | `/dashboard/profile` | Name and avatar |
+| Profile | `/dashboard/profile` | Account. Own display name, first and last name, avatar, email (confirmation email via `supabase.auth.updateUser`), password with a confirm field, theme, and default landing tab. The other person's name is listed and is read only. Sidebar and the mobile header have the same theme control |
 
 Nav lives in `app/components/SidebarNav.js` and `app/components/MobileTabNav.js`.
 
@@ -87,7 +109,8 @@ Nav lives in `app/components/SidebarNav.js` and `app/components/MobileTabNav.js`
 
 ## While you are in the code
 
-- Match the existing iOS-style UI: white cards, `#007AFF`, `#1C1C1E`, rounded-2xl, the shared `card` shadow.
+- Match the existing iOS-style UI: white cards, `#007AFF`, `#1C1C1E`, rounded-2xl, the shared `card` shadow. Dark mode recolors those utilities from `app/globals.css` under `html.dark`. New UI should keep using that palette so it follows the class.
+- Account saves must surface `error.message` from Supabase. Do not show a success state when the write returns an error or zero rows.
 - Keep commits small. One tab or one concern is enough.
 - Read `node_modules/next/dist/docs/` before changing framework APIs. This Next.js version differs from older App Router habits, including `proxy.js` instead of `middleware.js`.
 - After you change tabs, schema, deploy steps, or the plan, update this file before you open or finish the pull request.

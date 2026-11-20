@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
+import { landingHref } from '@/lib/theme'
 
 export async function proxy(request) {
   let supabaseResponse = NextResponse.next({ request })
@@ -39,7 +40,12 @@ export async function proxy(request) {
 
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('default_tab')
+      .eq('id', user.id)
+      .maybeSingle()
+    url.pathname = landingHref(data?.default_tab)
     return NextResponse.redirect(url)
   }
 
